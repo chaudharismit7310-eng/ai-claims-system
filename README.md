@@ -72,3 +72,20 @@ pip install -r requirements.txt
 
 # Create .env file from template
 cp .env.example .env
+
+
+Repository Structure
+
+AI-CLAIMS-SYSTEM/
+├── backend/
+│   ├── app/
+│   │   ├── ai_models/        # YOLOv8 weights and inference handlers
+│   │   ├── models/           # SQLAlchemy DB models
+│   │   ├── routes/           # FastAPI endpoints (claims, auth, etc.)
+│   │   ├── schemas/          # Pydantic data validation
+│   │   └── services/         # VLM, Forensics, Consistency, NLP, Cost Engine
+│   ├── main.py               # FastAPI entry point
+│   ├── requirements.txt      # Python dependencies
+│   └── .env.example          # Environment variable template
+├── frontend2/                # Active React UI for Customers & Agents
+└── README.md
