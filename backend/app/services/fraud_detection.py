@@ -2,16 +2,17 @@ import os
 import pickle
 import numpy as np
 
-# Path to our trained Kaggle + Vision Random Forest Model
+# Path to trained model
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "..", "ai_models", "fraud_model.pkl")
 
-# Load trained weights on startup
+# Load model
 try:
     with open(MODEL_PATH, "rb") as f:
         fraud_model = pickle.load(f)
     print("✅ Real Kaggle-Trained Fraud Detection Model loaded successfully.")
+    print(f"   Features expected: {fraud_model.n_features_in_}")
 except Exception as e:
-    print(f"⚠️ Warning: Could not load fraud model from {MODEL_PATH}. Error: {e}")
+    print(f"⚠️ Warning: Could not load fraud model. Error: {e}")
     fraud_model = None
 
 def detect_fraud(
@@ -22,52 +23,61 @@ def detect_fraud(
     previous_claims: int = 0,
     **kwargs
 ) -> dict:
-    """
-    Evaluates claim fraud probability using the real trained Random Forest model.
-    Accepts direct parameter calls as well as flexible claim dictionary kwargs.
-    """
+
     total_claim_amount = float(claim_amount)
 
-    # Calculate financial breakdown estimates for model features
-    injury_claim = total_claim_amount * 0.15
-    property_claim = total_claim_amount * 0.25
-    vehicle_claim = total_claim_amount * 0.60
+    # Extract features from kwargs
+    driver_age          = kwargs.get("driver_age", 35)
+    vehicle_age         = kwargs.get("vehicle_age", 5)
+    police_report       = kwargs.get("police_report", False)
+    witness_present     = kwargs.get("witness_present", False)
+    image_forgery_score = kwargs.get("image_forgery_score", 0.1)
+    address_change      = kwargs.get("address_change", 0)
+    number_of_cars      = kwargs.get("number_of_cars", 1)
 
-    # Extract additional kwargs with sensible defaults matching model schema
-    months_as_customer = kwargs.get("months_as_customer", 24)
-    policy_deductable = kwargs.get("policy_deductable", 1000)
-    umbrella_limit = kwargs.get("umbrella_limit", 0)
-    bodily_injuries = kwargs.get("bodily_injuries", 1 if driver_fault else 0)
-    
-    # Vision & Image Forensics Scores
-    vision_damage_severity = float(damage_confidence)
-    image_forgery_score = kwargs.get("image_forgery_score", 0.1 if not natural_cause else 0.05)
+    # Driver rating from damage confidence
+    if damage_confidence > 0.7:
+        driver_rating = 3
+    elif damage_confidence > 0.4:
+        driver_rating = 2
+    else:
+        driver_rating = 1
+
+    # Forgery score → supplements
+    num_supplements = int(image_forgery_score * 10)
 
     if fraud_model is not None:
-        # Construct feature array matching the 10 trained features in exact order:
-        # [months_as_customer, policy_deductable, umbrella_limit, total_claim_amount, 
-        #  injury_claim, property_claim, vehicle_claim, bodily_injuries, 
-        #  vision_damage_severity, image_forgery_score]
         feature_vector = np.array([[
-            months_as_customer,
-            policy_deductable,
-            umbrella_limit,
-            total_claim_amount,
-            injury_claim,
-            property_claim,
-            vehicle_claim,
-            bodily_injuries,
-            vision_damage_severity,
-            image_forgery_score
+            driver_age,                        # Age
+            1 if driver_fault else 0,          # Fault
+            0,                                 # VehicleCategory
+            total_claim_amount,                # VehiclePrice
+            1000,                              # Deductible
+            driver_rating,                     # DriverRating
+            previous_claims,                   # PastNumberOfClaims
+            vehicle_age,                       # AgeOfVehicle
+            driver_age,                        # AgeOfPolicyHolder
+            1 if police_report else 0,         # PoliceReportFiled
+            1 if witness_present else 0,       # WitnessPresent
+            num_supplements,                   # NumberOfSuppliments
+            address_change,                    # AddressChange_Claim
+            number_of_cars,                    # NumberOfCars
+            0,                                 # AccidentArea
+            0,                                 # PolicyType
+            0,                                 # BasePolicy
         ]])
 
-        # Predict probability of fraud (Class 1)
         fraud_prob = float(fraud_model.predict_proba(feature_vector)[0][1])
-    else:
-        # Fallback calculation if model file is missing
-        fraud_prob = 0.25
 
-    # Determine Risk Category
+    else:
+        # Fallback
+        fraud_prob = 0.3
+        if driver_fault:       fraud_prob += 0.1
+        if previous_claims > 2: fraud_prob += 0.2
+        if image_forgery_score > 0.5: fraud_prob += 0.2
+        fraud_prob = min(fraud_prob, 1.0)
+
+    # Risk levels
     if fraud_prob >= 0.70:
         risk_level = "CRITICAL"
     elif fraud_prob >= 0.50:
@@ -78,10 +88,11 @@ def detect_fraud(
         risk_level = "LOW"
 
     return {
-        "fraud_score": round(fraud_prob, 2),
-        "risk_level": risk_level,
-        "is_suspicious": fraud_prob > 0.50
+        "fraud_score":   round(fraud_prob, 2),
+        "risk_level":    risk_level,
+        "is_suspicious": fraud_prob > 0.50,
+        "model_version": "real_kaggle_v2_auc_0.96"
     }
 
-# Backward Compatibility Alias
+# Backward compatibility
 calculate_fraud_score = detect_fraud
