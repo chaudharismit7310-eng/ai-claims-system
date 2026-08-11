@@ -1,0 +1,29 @@
+# Secret Environment Variables (CRITICAL)
+.env
+*.env
+.env.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.venv/
+
+# Node / React Frontend
+node_modules/
+dist/
+build/
+.cache/
+
+# Project Specific Uploads & Database
+uploads/
+uploads/garage/
+*.db
+*.sqlite3
+
+# IDE / System files
+.vscode/
+.idea/
+.DS_Store
