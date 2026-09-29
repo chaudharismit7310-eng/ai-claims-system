@@ -1,84 +1,60 @@
 import os
-import cv2
-import numpy as np
-from PIL import Image
+from typing import Dict, Any
+from app.ai_models.yolov8_model import detect_damage as yolo_detect_damage
 
-# Try importing ultralytics for YOLO execution
-try:
-    from ultralytics import YOLO
-    ULTRALYTICS_AVAILABLE = True
-except ImportError:
-    ULTRALYTICS_AVAILABLE = False
-
-# Path pointing directly to C:\Users\Dell\ai-claims-system\models\car_damage_model.pt
-BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-MODEL_PATH = os.path.join(BASE_DIR, "models", "car_damage_model.pt")
-
-yolo_model = None
-if ULTRALYTICS_AVAILABLE and os.path.exists(MODEL_PATH):
-    try:
-        yolo_model = YOLO(MODEL_PATH)
-        print(f"✅ Real Car Damage Model loaded successfully from: {MODEL_PATH}")
-    except Exception as e:
-        print(f"⚠️ Could not load YOLO model: {e}")
-else:
-    print(f"⚠️ Model path not found or ultralytics missing. Looking at: {MODEL_PATH}")
-
-def detect_damage(image_path: str) -> dict:
+def detect_damage(image_path: str) -> Dict[str, Any]:
     """
-    Detects vehicle damage (dents, scratches, broken parts) using car_damage_model.pt.
-    Returns bounding boxes, damage count, and confidence scores.
+    Genuine vehicle damage detection service.
+    Delegates directly to custom trained YOLOv8 model (car_damage_model.pt).
+    Returns real bounding boxes, detected classes, and confidence scores.
     """
     if not os.path.exists(image_path):
         return {
             "error": f"Image file not found at path: {image_path}",
             "damage_detected": False,
             "damage_severity": 0.0,
+            "damage_confidence": 0.0,
+            "detections_count": 0,
             "detections": []
         }
 
-    detections = []
-    max_confidence = 0.0
+    try:
+        yolo_result = yolo_detect_damage(image_path)
+        detections = yolo_result.get("detections", [])
+        max_conf = float(yolo_result.get("max_confidence", 0.0))
 
-    # 1. Real YOLOv8 Inference on uploaded image
-    if yolo_model is not None:
-        try:
-            results = yolo_model(image_path, conf=0.25)
-            for r in results:
-                for box in r.boxes:
-                    cls_id = int(box.cls[0])
-                    label = yolo_model.names[cls_id]
-                    conf = float(box.conf[0])
-                    coords = box.xyxy[0].tolist()
+        # Format detection entries uniformly
+        formatted_detections = []
+        for d in detections:
+            formatted_detections.append({
+                "label": d.get("class", "damage"),
+                "confidence": d.get("confidence", 0.0),
+                "bbox": d.get("bbox", [])
+            })
 
-                    max_confidence = max(max_confidence, conf)
-                    detections.append({
-                        "label": label,
-                        "confidence": round(conf, 4),
-                        "bbox": [round(c, 2) for c in coords]
-                    })
-            
-            # Severity calculation based on detections
-            severity = min(1.0, (len(detections) * 0.25) + (max_confidence * 0.5)) if detections else 0.1
+        count = len(formatted_detections)
+        # Continuous damage severity based on detections count and max confidence
+        if count > 0:
+            severity = min(1.0, (count * 0.18) + (max_conf * 0.50))
+        else:
+            severity = 0.0
 
-            return {
-                "damage_detected": len(detections) > 0,
-                "damage_severity": round(severity, 2),
-                "damage_confidence": round(max_confidence if detections else 0.8, 2),
-                "detections_count": len(detections),
-                "detections": detections
-            }
-        except Exception as e:
-            print(f"⚠️ YOLO execution error: {e}")
+        return {
+            "damage_detected": count > 0,
+            "damage_severity": round(severity, 3),
+            "damage_confidence": round(max_conf, 3),
+            "detections_count": count,
+            "detections": formatted_detections,
+            "severity_level": yolo_result.get("severity", "none")
+        }
 
-    # Fallback response if model fails to initialize
-    return {
-        "damage_detected": True,
-        "damage_severity": 0.75,
-        "damage_confidence": 0.85,
-        "detections_count": 2,
-        "detections": [
-            {"label": "scratch", "confidence": 0.88, "bbox": [120, 200, 350, 420]},
-            {"label": "dent", "confidence": 0.82, "bbox": [300, 150, 500, 380]}
-        ]
-    }
+    except Exception as e:
+        print(f"Damage detection service error: {e}")
+        return {
+            "error": str(e),
+            "damage_detected": False,
+            "damage_severity": 0.0,
+            "damage_confidence": 0.0,
+            "detections_count": 0,
+            "detections": []
+        }

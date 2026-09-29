@@ -27,3 +27,8 @@ uploads/garage/
 .vscode/
 .idea/
 .DS_Store
+backend/backend/
+backend/reports/*.pdf
+reports/
+*.jpg
+backend/yolov8s.pt

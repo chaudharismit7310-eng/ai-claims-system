@@ -15,6 +15,11 @@ class ClaimCreate(ClaimBase):
     pass
 
 
+class SettlementRequest(BaseModel):
+    final_amount: float
+    notes: str
+
+
 class ClaimResponse(ClaimBase):
     claim_id: int
     damage_detected: Optional[str] = None
@@ -57,6 +62,36 @@ class ClaimResponse(ClaimBase):
     decision: Optional[str] = None
     final_decision: Optional[str] = None
     review_status: Optional[str] = None
+
+    # Hardware Capture & Location Proof
+    device_latitude: Optional[float] = None
+    device_longitude: Optional[float] = None
+    capture_timestamp: Optional[str] = None
+    is_live_capture: Optional[bool] = False
+    walkaround_video_url: Optional[str] = None
+    video_analysis_json: Optional[str] = None
+    garage_audit_json: Optional[str] = None
+
+    # Settlement Addendum
+    final_approved_amount: Optional[float] = None
+    settlement_notes: Optional[str] = None
+    settlement_status: Optional[str] = None
+
+    # Split Incident & Inspection Declaration
+    is_post_transit: Optional[bool] = False
+    incident_location: Optional[str] = None
+    inspection_location: Optional[str] = None
+    transit_reason: Optional[str] = None
+
+    # Decoupled Telemetry & VLM Geographic Incongruity
+    photo_capture_lat: Optional[float] = None
+    photo_capture_lon: Optional[float] = None
+    submission_device_lat: Optional[float] = None
+    submission_device_lon: Optional[float] = None
+    exif_gps_status: Optional[str] = "METADATA_STRIPPED"
+    geographic_incongruity: Optional[bool] = False
+    geographic_incongruity_reason: Optional[str] = None
+
 
     class Config:
         from_attributes = True

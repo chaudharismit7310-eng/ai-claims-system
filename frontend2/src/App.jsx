@@ -119,7 +119,7 @@ function App() {
     },
     {
       id: 'analytics',
-      label: '📊 Analytics',
+      label: '📊 Executive Analytics',
       roles: ['agent']
     },
     {

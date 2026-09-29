@@ -1,23 +1,25 @@
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
+import bcrypt
 from passlib.context import CryptContext
 from app.config import settings
 
-# Setup bcrypt password hashing context
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a plain password against the stored bcrypt hash."""
-    # Fallback support if old SHA256 passwords exist in local DB during dev testing
-    if len(hashed_password) == 64 and not hashed_password.startswith("$2b$"):
+    if len(hashed_password) == 64 and not hashed_password.startswith("$2"):
         import hashlib
         return hashlib.sha256(plain_password.encode()).hexdigest() == hashed_password
-        
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        pwd_bytes = plain_password.encode('utf-8')[:72]
+        return bcrypt.checkpw(pwd_bytes, hashed_password.encode('utf-8'))
+    except Exception:
+        return False
 
 def hash_password(password: str) -> str:
     """Generate a secure bcrypt hash for a plain password."""
-    return pwd_context.hash(password)
+    pwd_bytes = password.encode('utf-8')[:72]
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(pwd_bytes, salt).decode('utf-8')
 
 # Alias for backward compatibility if any route calls get_password_hash
 get_password_hash = hash_password

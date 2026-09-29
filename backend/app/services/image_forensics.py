@@ -5,18 +5,50 @@ import numpy as np
 import io
 
 
-def get_image_hash(image_path: str) -> str:
+def compute_dhash(image_path: str, hash_size: int = 8) -> str:
     """
-    Get MD5 hash of image for duplicate detection
+    Perceptual difference hashing (dHash) using PIL and NumPy.
+    Produces a 64-bit perceptual visual hash resistant to re-compression,
+    format conversion, and resizing.
     """
-
     try:
+        with Image.open(image_path) as img:
+            # Convert to grayscale and resize to (width=hash_size+1, height=hash_size)
+            gray = img.convert("L").resize((hash_size + 1, hash_size), Image.Resampling.LANCZOS)
+            pixels = np.asarray(gray)
+            # Compare adjacent pixels in each row (8 rows * 8 comparisons = 64 bits)
+            diff = pixels[:, 1:] > pixels[:, :-1]
+            decimal_value = 0
+            for bit in diff.flatten():
+                decimal_value = (decimal_value << 1) | int(bit)
+            return f"{decimal_value:016x}"
+    except Exception as e:
+        print(f"dHash computation error: {e}")
+        try:
+            # Fallback to byte hash if image decode fails
+            with open(image_path, "rb") as f:
+                return hashlib.md5(f.read()).hexdigest()
+        except Exception:
+            return ""
 
-        with open(image_path, "rb") as f:
-            return hashlib.md5(f.read()).hexdigest()
 
-    except:
-        return ""
+def hamming_distance(hash1: str, hash2: str) -> int:
+    """
+    Computes bitwise Hamming distance between two hexadecimal hash strings.
+    A distance <= 5 indicates a perceptual duplicate image.
+    """
+    try:
+        if not hash1 or not hash2:
+            return 999
+        v1 = int(hash1, 16)
+        v2 = int(hash2, 16)
+        return bin(v1 ^ v2).count("1")
+    except Exception:
+        return 999
+
+
+# Backward compatible alias
+get_image_hash = compute_dhash
 
 
 def perform_ela(image_path: str, quality: int = 90) -> float:
@@ -78,7 +110,7 @@ def check_image_fraud(
 ) -> dict:
     """
     Base image fraud checks:
-    1. Duplicate image
+    1. Duplicate image via perceptual difference hashing (dHash)
     2. ELA manipulation
     3. File size
     4. Dimensions
@@ -95,38 +127,44 @@ def check_image_fraud(
     }
 
     # --------------------------------------------------
-    # 1. IMAGE HASH
+    # 1. PERCEPTUAL IMAGE HASH (dHash)
     # --------------------------------------------------
 
-    img_hash = get_image_hash(image_path)
+    img_hash = compute_dhash(image_path)
 
     results["image_hash"] = img_hash
 
     # --------------------------------------------------
-    # 2. DUPLICATE CHECK
+    # 2. DUPLICATE CHECK (Hamming distance comparison)
     # --------------------------------------------------
 
     if db and img_hash:
 
         from app.models.claim_model import Claim
 
-        existing = db.query(Claim).filter(
-            Claim.image_hash == img_hash
-        ).first()
+        existing_claims = db.query(Claim).filter(
+            Claim.image_hash.isnot(None),
+            Claim.image_hash != ""
+        ).all()
 
-        if existing and (
-            current_claim_id is None or
-            existing.claim_id != current_claim_id
-        ):
+        for existing in existing_claims:
+            if current_claim_id is not None and existing.claim_id == current_claim_id:
+                continue
 
-            results["is_duplicate"] = True
-            results["is_suspicious"] = True
+            dist = hamming_distance(img_hash, existing.image_hash)
+            # Distance <= 5 indicates visually identical image (even if resized or compressed)
+            if existing.image_hash == img_hash or dist <= 5:
+                results["is_duplicate"] = True
+                results["is_suspicious"] = True
 
-            results["fraud_reasons"].append(
-                f"DUPLICATE IMAGE: Same image used in Claim #{existing.claim_id}"
-            )
+                match_label = "Perceptual Visual Match" if dist > 0 else "Exact Match"
+                results["fraud_reasons"].append(
+                    f"DUPLICATE IMAGE ({match_label}, Hamming dist={dist}): Visually identical image used in Claim #{existing.claim_id}"
+                )
 
-            results["fraud_score_addition"] += 0.40
+                results["fraud_score_addition"] += 0.40
+                break
+
 
     # --------------------------------------------------
     # 3. ELA ANALYSIS

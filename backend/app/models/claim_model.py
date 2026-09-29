@@ -55,3 +55,33 @@ class Claim(Base):
     vlm_estimated_cost_min = Column(Float, default=0.0)
     vlm_estimated_cost_max = Column(Float, default=0.0)
     vlm_claim_summary = Column(Text, default="")
+
+    # Hardware Capture & Location Proof
+    device_latitude = Column(Float, nullable=True)
+    device_longitude = Column(Float, nullable=True)
+    capture_timestamp = Column(String, nullable=True)
+    is_live_capture = Column(Boolean, default=False)
+    walkaround_video_url = Column(String, nullable=True)
+    video_analysis_json = Column(String, nullable=True)
+    garage_audit_json = Column(String, nullable=True)
+    
+    # Settlement Addendum
+    final_approved_amount = Column(Float, nullable=True)
+    settlement_notes = Column(Text, nullable=True)
+    settlement_status = Column(String, default="pending")
+
+    # Split Incident & Inspection Declaration (Post-Transit Triage Engine)
+    is_post_transit = Column(Boolean, default=False)
+    incident_location = Column(String, nullable=True)
+    inspection_location = Column(String, nullable=True)
+    transit_reason = Column(String, nullable=True)
+
+    # Decoupled Telemetry (Camera EXIF vs Client Browser GPS) & VLM Scene Incongruity
+    photo_capture_lat = Column(Float, nullable=True)
+    photo_capture_lon = Column(Float, nullable=True)
+    submission_device_lat = Column(Float, nullable=True)
+    submission_device_lon = Column(Float, nullable=True)
+    exif_gps_status = Column(String, default="METADATA_STRIPPED")
+    geographic_incongruity = Column(Boolean, default=False)
+    geographic_incongruity_reason = Column(String, default="")
+
