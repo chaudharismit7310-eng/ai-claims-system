@@ -1,3 +1,10 @@
+# 0. ZeroGPU integration MUST be imported before any CUDA packages
+try:
+    import spaces
+    HAS_SPACES = True
+except ImportError:
+    HAS_SPACES = False
+
 import os
 import sys
 import importlib.util
@@ -53,22 +60,15 @@ with gr.Blocks(title="AI Claims System - API Gateway") as demo:
         test_btn = gr.Button("🔍 Ping System Health", variant="primary")
         test_out = gr.Textbox(label="Status Response", value="Click button to test")
     
-# ZeroGPU integration for Hugging Face Spaces
-try:
-    import spaces
-    HAS_SPACES = True
-except ImportError:
-    HAS_SPACES = False
+    if HAS_SPACES:
+        @spaces.GPU
+        def ping():
+            return "✅ Backend API is active with ZeroGPU acceleration! YOLOv8, Actuarial Engine, and Database are operational."
+    else:
+        def ping():
+            return "✅ Backend API is active! YOLOv8, Actuarial Engine, and Database are fully operational."
 
-if HAS_SPACES:
-    @spaces.GPU
-    def ping():
-        return "✅ Backend API is active with ZeroGPU acceleration! YOLOv8, Actuarial Engine, and Database are operational."
-else:
-    def ping():
-        return "✅ Backend API is active! YOLOv8, Actuarial Engine, and Database are fully operational."
-
-test_btn.click(ping, outputs=test_out)
+    test_btn.click(ping, outputs=test_out)
 
 # 5. Mount the Gradio demo onto FastAPI so Hugging Face Space displays the Gradio UI while serving all REST endpoints
 app = gr.mount_gradio_app(fastapi_app, demo, path="/")
