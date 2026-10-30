@@ -1,0 +1,18 @@
+# YOLOv8 Car Damage Detection Dataset Config
+path: ../data/dataset
+train: images/train
+val: images/val
+test: images/test
+
+nc: 10
+names:
+  0: dent
+  1: scratch
+  2: crack
+  3: broken_glass
+  4: broken_part
+  5: paint_damage
+  6: headlight_damage
+  7: taillight_damage
+  8: bumper_damage
+  9: corrosion

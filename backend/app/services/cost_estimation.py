@@ -1,20 +1,7 @@
 import os
-import pickle
 import numpy as np
-
-# Load trained model
-MODEL_PATH = os.path.join(os.path.dirname(__file__), "..", "ai_models", "cost_model.pkl")
-
-try:
-    with open(MODEL_PATH, "rb") as f:
-        model_data = pickle.load(f)
-    cost_model  = model_data['model']
-    le_make     = model_data['le_make']
-    le_type     = model_data['le_type']
-    print(f"[OK] Real Cost Model loaded! R2={model_data['r2_score']:.4f}")
-except Exception as e:
-    print(f"[WARN] Cost model not loaded: {e}")
-    cost_model = None
+from datetime import datetime
+from app.ai_models.cost_model import estimate_repair_cost as objective_cost_estimator
 
 # India specific car value mapping (INR)
 INDIA_CAR_VALUES = {
@@ -28,40 +15,22 @@ INDIA_CAR_VALUES = {
     'audi':      3500000,  'default':  800000
 }
 
-import pandas as pd
-
-# Brand alias mapping to Craigslist le_make classes
-BRAND_ALIASES = {
-    'maruti': 'toyota',
-    'suzuki': 'toyota',
-    'tata': 'ford',
-    'mahindra': 'jeep',
-    'renault': 'nissan',
-    'skoda': 'volkswagen',
-    'mg': 'chevrolet',
-    'kia': 'kia',
-    'hyundai': 'hyundai',
-    'honda': 'honda',
-    'toyota': 'toyota',
-    'ford': 'ford',
-    'bmw': 'bmw',
-    'audi': 'audi',
-    'mercedes': 'mercedes-benz',
-    'mercedes-benz': 'mercedes-benz',
-    'volkswagen': 'volkswagen',
-    'nissan': 'nissan'
-}
-
 def estimate_repair_cost(
-    damage_confidence: float,
-    claim_amount: float,
-    driver_fault: bool,
-    fraud_score: float,
+    damage_confidence: float = 0.5,
+    claim_amount: float = 0.0,
+    driver_fault: bool = False,
+    fraud_score: float = 0.0,
     vehicle_make: str = "default",
-    vehicle_age: int = 5,
+    vehicle_age: int = 4,
     vehicle_condition: str = "good",
     **kwargs
 ) -> dict:
+    """
+    Enforces objective, vision-driven actuarial cost modeling.
+    Completely excludes claimed_amount from valuation calculation.
+    Uses physical damage inputs (YOLOv8 classes, bboxes, panel count, VLM severity),
+    vehicle market base value, and vehicle age.
+    """
     make_lower = vehicle_make.lower() if vehicle_make else "default"
 
     # Identify brand from string
@@ -71,78 +40,46 @@ def estimate_repair_cost(
             detected_brand = brand
             break
 
-    base_car_value = INDIA_CAR_VALUES.get(detected_brand, INDIA_CAR_VALUES['default'])
-    # Continuous depreciation based on vehicle age (compounded ~8% per year, min 25% of base)
+    base_car_value = float(INDIA_CAR_VALUES.get(detected_brand, INDIA_CAR_VALUES['default']))
+    current_year = datetime.now().year
+    vehicle_year = current_year - max(0, int(vehicle_age))
+
+    vehicle_details = {
+        "price": base_car_value,
+        "year": vehicle_year,
+        "make": vehicle_make
+    }
+
+    # Extract damage detections and severity
+    damage_detections = kwargs.get("detections", [])
+    if not damage_detections:
+        det_count = int(kwargs.get("detection_count", 1))
+        damage_detections = [{"class": "damage", "confidence": float(damage_confidence)}] * max(1, det_count)
+
+    vlm_sev_str = str(kwargs.get("vlm_severity", "")).lower()
+    if not vlm_sev_str or vlm_sev_str == "none":
+        damage_severity_arg = kwargs.get("damage_severity")
+        if damage_severity_arg is not None:
+            sev_val = float(damage_severity_arg)
+            vlm_sev_str = "severe" if sev_val > 0.65 else ("moderate" if sev_val > 0.35 else "minor")
+        else:
+            vlm_sev_str = "moderate"
+
+    # Compute objective valuation strictly independent of claimed_amount
+    actuarial_res = objective_cost_estimator(
+        vehicle_details=vehicle_details,
+        damage_detections=damage_detections,
+        vlm_severity=vlm_sev_str
+    )
+
+    estimated = actuarial_res["predicted_cost"]
+    cost_range_min = actuarial_res["cost_range_min"]
+    cost_range_max = actuarial_res["cost_range_max"]
+
+    # Continuous depreciation based on vehicle age
     car_value_inr = max(150000.0, float(base_car_value * (0.92 ** min(max(int(vehicle_age), 0), 15))))
 
-    # Condition mapping
-    condition_map = {
-        'new': 5, 'like new': 4, 'excellent': 3,
-        'good': 2, 'fair': 1, 'salvage': 0
-    }
-    condition_num = condition_map.get(str(vehicle_condition).lower(), 2)
-
-    # Encode make using le_make
-    make_encoded = 0
-    if cost_model is not None and le_make is not None:
-        target_make = BRAND_ALIASES.get(detected_brand, detected_brand)
-        if target_make in le_make.classes_:
-            make_encoded = int(le_make.transform([target_make])[0])
-        elif 'toyota' in le_make.classes_:
-            make_encoded = int(le_make.transform(['toyota'])[0])
-
-    # Encode type using le_type
-    type_encoded = 0
-    v_type = kwargs.get("vehicle_type", "sedan")
-    if make_lower:
-        if any(w in make_lower for w in ["suv", "creta", "harrier", "safari", "xuv", "brezza", "scorpio", "fortuner"]):
-            v_type = "SUV"
-        elif any(w in make_lower for w in ["hatchback", "swift", "i10", "i20", "alto", "baleno", "wagon"]):
-            v_type = "hatchback"
-    if cost_model is not None and le_type is not None:
-        if v_type in le_type.classes_:
-            type_encoded = int(le_type.transform([v_type])[0])
-        elif 'sedan' in le_type.classes_:
-            type_encoded = int(le_type.transform(['sedan'])[0])
-
-    # Continuous damage severity calculation
-    # Combines explicit damage_severity, YOLO detections count, and max confidence
-    if "damage_severity" in kwargs and kwargs["damage_severity"] is not None:
-        try:
-            damage_severity = float(kwargs["damage_severity"])
-        except (ValueError, TypeError):
-            damage_severity = float(damage_confidence)
-    else:
-        # Continuous heuristic blending
-        det_count = kwargs.get("detection_count", 1)
-        det_factor = min(det_count, 5) / 5.0
-        vlm_sev_str = str(kwargs.get("vlm_severity", "")).lower()
-        vlm_factor = 0.85 if "severe" in vlm_sev_str else (0.50 if "moderate" in vlm_sev_str else 0.25)
-        damage_severity = (0.35 * float(damage_confidence)) + (0.35 * det_factor) + (0.30 * vlm_factor)
-
-    damage_severity = float(np.clip(damage_severity, 0.05, 0.95))
-    odometer = float(kwargs.get("odometer", max(10000, int(vehicle_age) * 12000)))
-
-    if cost_model is not None:
-        features_df = pd.DataFrame([[
-            int(vehicle_age),   # vehicle_age
-            condition_num,      # condition_num
-            make_encoded,       # make_encoded
-            type_encoded,       # type_encoded
-            car_value_inr,      # car_value_inr
-            damage_severity,    # damage_severity
-            odometer            # odometer
-        ]], columns=['vehicle_age', 'condition_num', 'make_encoded', 'type_encoded', 'car_value_inr', 'damage_severity', 'odometer'])
-
-        raw_pred = float(cost_model.predict(features_df)[0])
-        # Ensure repair estimate is proportional to car value and severity
-        estimated = max(1000.0, round(raw_pred, 2))
-    else:
-        # Dynamic fallback formula
-        base = car_value_inr * damage_severity * 0.35
-        estimated = max(1000.0, round(base, 2))
-
-    # Overcharge check
+    # Overcharge audit check comparing customer claim vs AI objective estimate
     difference = round(claim_amount - estimated, 2)
     overcharge_pct = round((difference / claim_amount) * 100, 1) if claim_amount > 0 else 0
 
@@ -157,14 +94,23 @@ def estimate_repair_cost(
         flag = "Fair"
         flag_reason = "Claimed amount matches estimated repair cost"
 
+    damage_sev_val = kwargs.get("damage_severity", damage_confidence)
+    try:
+        damage_sev_float = round(float(damage_sev_val), 3)
+    except (ValueError, TypeError):
+        damage_sev_float = round(float(damage_confidence), 3)
+
     return {
         "estimated_cost": estimated,
+        "predicted_cost": estimated,
+        "cost_range_min": cost_range_min,
+        "cost_range_max": cost_range_max,
         "claimed_amount": claim_amount,
         "difference": difference,
         "overcharge_percent": overcharge_pct,
-        "damage_severity": round(damage_severity, 3),
+        "damage_severity": damage_sev_float,
         "car_valuation": round(car_value_inr, 2),
         "flag": flag,
         "flag_reason": flag_reason,
-        "model_version": "real_kaggle_v2_r2_0.94_dynamic"
+        "model_version": "vision_actuarial_objective_v3"
     }

@@ -4,6 +4,8 @@ from typing import Dict, Any
 from app.services.ocr_service import extract_number_plate
 from app.ai_models.yolov8_model import detect_damage
 
+from app.utils.plate_normalizer import normalize_plate
+
 def process_walkaround_video(video_path: str, registered_plate: str, claim_id: int) -> Dict[str, Any]:
     """
     Extracts 4 keyframes from a video at 15%, 40%, 65%, and 90% duration marks.
@@ -55,11 +57,11 @@ def process_walkaround_video(video_path: str, registered_plate: str, claim_id: i
             ocr_res = extract_number_plate(frame_path)
             plate_text = ocr_res.get("plate_text", "")
             
-            # Simple substring/equivalence check (stripping spaces)
-            safe_reg_plate = registered_plate.replace(" ", "").lower() if registered_plate else ""
-            safe_ocr_plate = plate_text.replace(" ", "").lower() if plate_text else ""
+            # Substring/equivalence check using normalized plates
+            safe_reg_plate = normalize_plate(registered_plate)
+            safe_ocr_plate = normalize_plate(plate_text)
             
-            if safe_reg_plate and safe_reg_plate in safe_ocr_plate:
+            if safe_reg_plate and (safe_reg_plate == safe_ocr_plate or safe_reg_plate in safe_ocr_plate or safe_ocr_plate in safe_reg_plate):
                 plate_verified = True
 
             damage_res = detect_damage(frame_path)

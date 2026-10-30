@@ -1,4 +1,5 @@
 import re
+from app.utils.plate_normalizer import normalize_plate
 
 def check_claim_consistency(
     description: str = "",
@@ -25,15 +26,16 @@ def check_claim_consistency(
     # -------------------------------------------------------------
     # SECTION 1: License Plate & Car Model Mismatch Checks
     # -------------------------------------------------------------
-    submitted_plate = str(claim_data.get("license_plate", "") or claim_data.get("vehicle_number", "")).upper().replace(" ", "")
-    cleaned_ocr = re.sub(r'[^A-Z0-9]', '', ocr_text.upper())
+    raw_submitted_plate = str(claim_data.get("license_plate", "") or claim_data.get("vehicle_number", ""))
+    submitted_plate = normalize_plate(raw_submitted_plate)
+    cleaned_ocr = normalize_plate(ocr_text)
 
     # Check 1A: License Plate Mismatch
-    if submitted_plate and cleaned_ocr:
-        if submitted_plate not in cleaned_ocr and cleaned_ocr not in submitted_plate:
+    if submitted_plate and cleaned_ocr and cleaned_ocr not in ["NOTDETECTED", "NOTVISIBLE"]:
+        if submitted_plate != cleaned_ocr and submitted_plate not in cleaned_ocr and cleaned_ocr not in submitted_plate:
             issues.append({
                 "type": "LICENSE_PLATE_MISMATCH",
-                "message": f"License Plate Mismatch: Claim submitted '{submitted_plate}', but OCR detected '{cleaned_ocr}'",
+                "message": f"License Plate Mismatch: Claim submitted '{raw_submitted_plate or submitted_plate}', but OCR detected '{ocr_text or cleaned_ocr}'",
                 "severity": "CRITICAL"
             })
             consistency_score -= 0.35

@@ -1,5 +1,6 @@
 import easyocr
 import re
+from app.utils.plate_normalizer import normalize_plate
 
 reader = None
 
@@ -20,7 +21,7 @@ def extract_number_plate(image_path: str) -> dict:
         detected_plate = None
         
         for (bbox, text, confidence) in results:
-            clean_text = text.upper().replace(" ", "")
+            clean_text = normalize_plate(text)
             all_text.append({"text": clean_text, "confidence": round(confidence, 2)})
             
             if plate_pattern.match(clean_text):

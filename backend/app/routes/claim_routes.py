@@ -38,6 +38,7 @@ from app.services.vlm_service import analyze_damage_with_vlm, generate_claim_sum
 from app.services.exif_service import extract_exif_telemetry
 
 from app.utils.pdf_generator import generate_claim_pdf
+from app.utils.plate_normalizer import normalize_plate
 from app.auth import decode_token
 
 import shutil
@@ -289,9 +290,11 @@ async def submit_claim(
         user_vehicle = None
 
         if vehicle_number:
+            norm_form_v_num = normalize_plate(vehicle_number)
             for v in user_vehicles:
-                v_num = (getattr(v, "vehicle_number", None) or getattr(v, "license_plate", None) or "").replace(" ", "").upper()
-                if v_num and v_num == vehicle_number.replace(" ", "").upper():
+                v_num_str = getattr(v, "vehicle_number", None) or getattr(v, "license_plate", None) or ""
+                v_num = normalize_plate(v_num_str)
+                if v_num and norm_form_v_num and v_num == norm_form_v_num:
                     user_vehicle = v
                     break
 
@@ -317,11 +320,11 @@ async def submit_claim(
 
             # Check C: Registered License Plate vs Photo Detected Plate
             registered_plate_str = (getattr(user_vehicle, "vehicle_number", None) or getattr(user_vehicle, "license_plate", None) or "")
-            reg_plate = registered_plate_str.replace(" ", "").upper()
-            photo_plate = str(plate_info).replace(" ", "").upper()
+            reg_plate = normalize_plate(registered_plate_str)
+            photo_plate = normalize_plate(plate_info)
 
-            if reg_plate and photo_plate not in ["NOT_DETECTED", "NOT_VISIBLE", ""]:
-                if reg_plate != photo_plate and reg_plate not in photo_plate:
+            if reg_plate and photo_plate and photo_plate not in ["NOTDETECTED", "NOTVISIBLE"]:
+                if reg_plate != photo_plate and reg_plate not in photo_plate and photo_plate not in reg_plate:
                     mismatch_flags.append(f"Plate Mismatch: Registered '{registered_plate_str}' vs Photo Detected '{plate_info}'")
 
     if mismatch_flags:
@@ -459,7 +462,8 @@ async def submit_claim(
         vehicle_condition="good",
         damage_severity=continuous_sev,
         detection_count=yolo_count,
-        vlm_severity=vlm_sev
+        vlm_severity=vlm_sev,
+        detections=damage_results.get("detections", [])
     )
 
     # 16. AI DECISION ENGINE
