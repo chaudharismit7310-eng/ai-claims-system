@@ -22,7 +22,7 @@ sys.path.insert(0, backend_dir)
 os.makedirs(os.path.join(root_dir, "uploads"), exist_ok=True)
 os.makedirs(os.path.join(root_dir, "uploads", "garage"), exist_ok=True)
 
-# 2. Register backend/app as the 'app' package in sys.modules so imports like 'from app.database import engine' work seamlessly
+# 2. Register backend/app as the 'app' package in sys.modules
 spec = importlib.util.spec_from_file_location(
     "app",
     os.path.join(backend_app_dir, "__init__.py"),
@@ -34,10 +34,20 @@ spec.loader.exec_module(backend_app_pkg)
 
 # 3. Import the FastAPI app
 from app.main import app as fastapi_app
+from fastapi.staticfiles import StaticFiles
 
 import gradio as gr
 
-# 4. Define an interactive Gradio landing and health check dashboard
+# 4. ZeroGPU functions must be defined before demo blocks
+if HAS_SPACES:
+    @spaces.GPU
+    def gpu_inference_check():
+        return "✅ Backend API is active with ZeroGPU acceleration! YOLOv8 and Actuarial Engine are operational."
+else:
+    def gpu_inference_check():
+        return "✅ Backend API is active! YOLOv8 and Actuarial Engine are operational."
+
+# 5. Define an interactive Gradio landing and health check dashboard
 with gr.Blocks(title="AI Claims System - API Gateway") as demo:
     gr.Markdown("""
     # 🚗 AI Motor Claims Inspection & Actuarial Valuation API
@@ -60,21 +70,11 @@ with gr.Blocks(title="AI Claims System - API Gateway") as demo:
         test_btn = gr.Button("🔍 Ping System Health", variant="primary")
         test_out = gr.Textbox(label="Status Response", value="Click button to test")
     
-    if HAS_SPACES:
-        @spaces.GPU
-        def ping():
-            return "✅ Backend API is active with ZeroGPU acceleration! YOLOv8, Actuarial Engine, and Database are operational."
-    else:
-        def ping():
-            return "✅ Backend API is active! YOLOv8, Actuarial Engine, and Database are fully operational."
+    test_btn.click(gpu_inference_check, outputs=test_out)
 
-    test_btn.click(ping, outputs=test_out)
-
-# 5. Mount the Gradio demo onto FastAPI so Hugging Face Space displays the Gradio UI while serving all REST endpoints
-app = gr.mount_gradio_app(fastapi_app, demo, path="/")
+# 6. Include all FastAPI routes into demo.app so REST endpoints work seamlessly alongside Gradio
+demo.app.include_router(fastapi_app.router)
+demo.app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 if __name__ == "__main__":
-    import uvicorn
-    port = int(os.environ.get("PORT", 7860))
-    print(f"Starting server on port {port}...")
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    demo.queue().launch(server_name="0.0.0.0", server_port=7860)
