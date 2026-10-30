@@ -34,6 +34,8 @@ spec.loader.exec_module(backend_app_pkg)
 
 # 3. Import the FastAPI app
 from app.main import app as fastapi_app
+from fastapi.staticfiles import StaticFiles
+
 import gradio as gr
 
 # 4. ZeroGPU functions must be defined before demo blocks
@@ -59,9 +61,9 @@ with gr.Blocks(title="AI Claims System - API Gateway") as demo:
     
     ---
     ### 🔗 Live Endpoints
-    - 📖 **Interactive Swagger UI**: [`/docs`](/docs)
-    - 🔍 **OpenAPI Schema**: [`/openapi.json`](/openapi.json)
-    - 🩺 **Health Check**: [`/health`](/health)
+    - 📖 **Interactive Swagger UI**: [`/api/docs`](/api/docs)
+    - 🔍 **OpenAPI Schema**: [`/api/openapi.json`](/api/openapi.json)
+    - 🩺 **Health Check**: [`/api/health`](/api/health)
     """)
     
     with gr.Row():
@@ -70,11 +72,9 @@ with gr.Blocks(title="AI Claims System - API Gateway") as demo:
     
     test_btn.click(gpu_inference_check, outputs=test_out)
 
-# 6. Mount Gradio interface onto FastAPI at /gradio so root & all REST endpoints stay pure FastAPI
-app = gr.mount_gradio_app(fastapi_app, demo, path="/gradio")
+# 6. Mount FastAPI app at /api and static uploads so both Gradio UI and REST API work flawlessly
+demo.app.mount("/api", fastapi_app)
+demo.app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 if __name__ == "__main__":
-    import uvicorn
-    port = int(os.environ.get("PORT", 7860))
-    print(f"Starting server on port {port}...")
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    demo.queue().launch(server_name="0.0.0.0", server_port=7860)
