@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
 import VoiceInput from './VoiceInput'
+import { API_BASE_URL } from './config'
 
 function SubmitClaim() {
   const [form, setForm] = useState({
@@ -61,7 +62,7 @@ function SubmitClaim() {
 
   useEffect(() => {
     axios
-      .get('http://127.0.0.1:8000/vehicles/verified', {
+      .get(`${API_BASE_URL}/vehicles/verified`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -549,7 +550,7 @@ function SubmitClaim() {
         if (transitReason) formData.append('transit_reason', transitReason)
       }
 
-      const res = await axios.post('http://127.0.0.1:8000/claims/submit-claim', formData, {
+      const res = await axios.post(`${API_BASE_URL}/claims/submit-claim`, formData, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -1465,7 +1466,7 @@ function SubmitClaim() {
               <p className="text-xs font-medium text-gray-700 mb-2">🌡️ Damage Heatmap</p>
 
               <img
-                src={`http://127.0.0.1:8000/${result.heatmap_image}`}
+                src={`${API_BASE_URL}/${result.heatmap_image}`}
                 alt="Damage Heatmap"
                 className="w-full rounded-lg"
               />

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
+import { API_BASE_URL } from './config'
 
 function ClaimsList() {
     const [claims, setClaims] = useState([])
@@ -8,7 +9,7 @@ function ClaimsList() {
     const user = JSON.parse(localStorage.getItem('user') || '{}')
 
     useEffect(() => {
-        axios.get('http://127.0.0.1:8000/claims/all-claims', {
+        axios.get(`${API_BASE_URL}/claims/all-claims`, {
             headers: { Authorization: `Bearer ${token}` }
         }).then(res => {
             let data = res.data
@@ -41,7 +42,7 @@ function ClaimsList() {
 
     const downloadPDF = async (id) => {
         try {
-            const res = await axios.get(`http://127.0.0.1:8000/claims/report/${id}`, {
+            const res = await axios.get(`${API_BASE_URL}/claims/report/${id}`, {
                 responseType: 'blob',
                 headers: { Authorization: `Bearer ${token}` }
             })

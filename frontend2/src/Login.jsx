@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import axios from 'axios'
+import { API_BASE_URL } from './config'
 
 function Login({ onLogin }) {
     const [isRegister, setIsRegister] = useState(false)
@@ -14,11 +15,11 @@ function Login({ onLogin }) {
         setError('')
         try {
             if (isRegister) {
-                await axios.post('http://127.0.0.1:8000/auth/register', form)
+                await axios.post(`${API_BASE_URL}/auth/register`, form)
                 setIsRegister(false)
                 setError('✅ Registered! Please login now.')
             } else {
-                const res = await axios.post('http://127.0.0.1:8000/auth/login', {
+                const res = await axios.post(`${API_BASE_URL}/auth/login`, {
                     email: form.email,
                     password: form.password
                 })

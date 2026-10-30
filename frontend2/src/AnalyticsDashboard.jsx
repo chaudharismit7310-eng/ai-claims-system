@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
+import { API_BASE_URL } from './config'
 import {
   PieChart, Pie, Cell, Tooltip, Legend,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer,
@@ -14,7 +15,7 @@ function AnalyticsDashboard() {
   const token = localStorage.getItem('token')
 
   useEffect(() => {
-    axios.get('http://127.0.0.1:8000/claims/analytics/overview', {
+    axios.get(`${API_BASE_URL}/claims/analytics/overview`, {
       headers: { Authorization: `Bearer ${token}` }
     }).then(res => {
       setData(res.data)

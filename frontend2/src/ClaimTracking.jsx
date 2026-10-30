@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
+import { API_BASE_URL } from './config'
 
 function ClaimTracking() {
     const [claims, setClaims] = useState([])
@@ -9,7 +10,7 @@ function ClaimTracking() {
     const user = JSON.parse(localStorage.getItem('user') || '{}')
 
     useEffect(() => {
-        axios.get('http://127.0.0.1:8000/claims/my-claims', {
+        axios.get(`${API_BASE_URL}/claims/my-claims`, {
             headers: { Authorization: `Bearer ${token}` }
         }).then(res => { setClaims(res.data); setLoading(false) })
             .catch(() => setLoading(false))
@@ -43,7 +44,7 @@ function ClaimTracking() {
 
     const downloadPDF = async (id) => {
         try {
-            const res = await axios.get(`http://127.0.0.1:8000/claims/report/${id}`, {
+            const res = await axios.get(`${API_BASE_URL}/claims/report/${id}`, {
                 responseType: 'blob',
                 headers: { Authorization: `Bearer ${token}` }
             })

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 import AddVehicle from './AddVehicle'
+import { API_BASE_URL } from './config'
 
 function MyVehicles() {
     const [vehicles, setVehicles] = useState([])
@@ -11,7 +12,7 @@ function MyVehicles() {
     useEffect(() => { fetchVehicles() }, [])
 
     const fetchVehicles = () => {
-        axios.get('http://127.0.0.1:8000/vehicles/my-vehicles', {
+        axios.get(`${API_BASE_URL}/vehicles/my-vehicles`, {
             headers: { Authorization: `Bearer ${token}` }
         }).then(res => { setVehicles(res.data); setLoading(false) })
             .catch(() => setLoading(false))

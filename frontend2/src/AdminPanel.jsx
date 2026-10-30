@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
+import { API_BASE_URL } from './config'
 
 function AdminPanel() {
     const [stats, setStats] = useState(null)
@@ -19,10 +20,10 @@ function AdminPanel() {
     const fetchAll = async () => {
         try {
             const [statsRes, usersRes, vehiclesRes, claimsRes] = await Promise.all([
-                axios.get('http://127.0.0.1:8000/admin/dashboard', { headers }),
-                axios.get('http://127.0.0.1:8000/admin/users', { headers }),
-                axios.get('http://127.0.0.1:8000/admin/vehicles', { headers }),
-                axios.get('http://127.0.0.1:8000/admin/claims', { headers }),
+                axios.get(`${API_BASE_URL}/admin/dashboard`, { headers }),
+                axios.get(`${API_BASE_URL}/admin/users`, { headers }),
+                axios.get(`${API_BASE_URL}/admin/vehicles`, { headers }),
+                axios.get(`${API_BASE_URL}/admin/claims`, { headers }),
             ])
             setStats(statsRes.data)
             setUsers(usersRes.data)
@@ -37,7 +38,7 @@ function AdminPanel() {
     const updateRole = async (userId, role) => {
         try {
             await axios.put(
-                `http://127.0.0.1:8000/admin/users/${userId}/role?role=${role}`,
+                `${API_BASE_URL}/admin/users/${userId}/role?role=${role}`,
                 {},
                 { headers }
             )

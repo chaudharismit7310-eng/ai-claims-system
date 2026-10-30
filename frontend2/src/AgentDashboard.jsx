@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
+import { API_BASE_URL } from './config'
 
 function AgentDashboard() {
 
@@ -19,7 +20,7 @@ function AgentDashboard() {
     }, [])
 
     const fetchClaims = () => {
-        axios.get('http://127.0.0.1:8000/claims/all-claims', {
+        axios.get(`${API_BASE_URL}/claims/all-claims`, {
             headers: {
                 Authorization: `Bearer ${token}`
             }
@@ -53,7 +54,7 @@ function AgentDashboard() {
         try {
             const amount = parseFloat(approvedAmount) || 0
             await axios.post(
-                `http://127.0.0.1:8000/claims/settle/${selectedClaim.claim_id}`,
+                `${API_BASE_URL}/claims/settle/${selectedClaim.claim_id}`,
                 {
                     final_amount: amount,
                     notes: agentNotes || "No notes provided"
@@ -215,7 +216,7 @@ function AgentDashboard() {
 
                             {/* DOWNLOAD PDF REPORT BUTTON */}
                             <a
-                                href={`http://127.0.0.1:8000/claims/${selectedClaim.claim_id}/download-pdf`}
+                                href={`${API_BASE_URL}/claims/${selectedClaim.claim_id}/download-pdf`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="w-full bg-slate-800 hover:bg-slate-900 text-white py-2.5 px-4 rounded-xl text-xs font-bold shadow transition-all flex items-center justify-center gap-2 my-3"
@@ -309,7 +310,7 @@ function AgentDashboard() {
                                   🌡️ Damage Heatmap
                                 </p>
                                 <img
-                                  src={`http://127.0.0.1:8000/${selectedClaim.heatmap_image}`}
+                                  src={`${API_BASE_URL}/${selectedClaim.heatmap_image}`}
                                   alt="Heatmap"
                                   className="w-full rounded-lg"
                                 />
@@ -323,7 +324,7 @@ function AgentDashboard() {
                                   <span>✅</span> 360° Walkaround Video Verification
                                 </p>
                                 <video
-                                  src={`http://127.0.0.1:8000/${selectedClaim.walkaround_video_url}`}
+                                  src={`${API_BASE_URL}/${selectedClaim.walkaround_video_url}`}
                                   controls
                                   className="w-full max-h-64 rounded-lg bg-black mb-3"
                                 />
@@ -353,9 +354,9 @@ function AgentDashboard() {
                                               <div 
                                                 key={i} 
                                                 className="cursor-pointer border border-gray-200 rounded overflow-hidden hover:border-indigo-400 hover:shadow-sm transition-all"
-                                                onClick={() => setSelectedKeyframe(`http://127.0.0.1:8000/${kf}`)}
+                                                onClick={() => setSelectedKeyframe(`${API_BASE_URL}/${kf}`)}
                                               >
-                                                <img src={`http://127.0.0.1:8000/${kf}`} alt={`Keyframe ${i+1}`} className="w-full h-16 object-cover" />
+                                                <img src={`${API_BASE_URL}/${kf}`} alt={`Keyframe ${i+1}`} className="w-full h-16 object-cover" />
                                               </div>
                                             ))}
                                           </div>

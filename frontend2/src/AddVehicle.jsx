@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import axios from 'axios'
+import { API_BASE_URL } from './config'
 
 function AddVehicle({ onSuccess }) {
     const [form, setForm] = useState({
@@ -25,7 +26,7 @@ function AddVehicle({ onSuccess }) {
             formData.append('rc_document', rcFile)
             formData.append('policy_document', policyFile)
 
-            await axios.post('http://127.0.0.1:8000/vehicles/add', formData, {
+            await axios.post(`${API_BASE_URL}/vehicles/add`, formData, {
                 headers: { Authorization: `Bearer ${token}` }
             })
             onSuccess()

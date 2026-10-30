@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
+import { API_BASE_URL } from './config'
 
 function AgentVehicleDashboard() {
     const [vehicles, setVehicles] = useState([])
@@ -12,7 +13,7 @@ function AgentVehicleDashboard() {
     useEffect(() => { fetchVehicles() }, [])
 
     const fetchVehicles = () => {
-        axios.get('http://127.0.0.1:8000/vehicles/pending', {
+        axios.get(`${API_BASE_URL}/vehicles/pending`, {
             headers: { Authorization: `Bearer ${token}` }
         }).then(res => { setVehicles(res.data); setLoading(false) })
             .catch(() => setLoading(false))
@@ -26,7 +27,7 @@ function AgentVehicleDashboard() {
             formData.append('agent_notes', agentNotes)
 
             await axios.put(
-                `http://127.0.0.1:8000/vehicles/verify/${selectedVehicle.vehicle_id}`,
+                `${API_BASE_URL}/vehicles/verify/${selectedVehicle.vehicle_id}`,
                 formData,
                 { headers: { Authorization: `Bearer ${token}` } }
             )
@@ -114,14 +115,14 @@ function AgentVehicleDashboard() {
                             {/* Document Links */}
                             <div className="mb-4 space-y-2">
                                 {selectedVehicle.rc_document && (
-                                    <a href={`http://127.0.0.1:8000/${selectedVehicle.rc_document}`}
+                                    <a href={`${API_BASE_URL}/${selectedVehicle.rc_document}`}
                                         target="_blank" rel="noreferrer"
                                         className="block bg-blue-50 text-blue-600 px-3 py-2 rounded-lg text-sm hover:bg-blue-100 transition-colors">
                                         📄 View RC Book
                                     </a>
                                 )}
                                 {selectedVehicle.policy_document && (
-                                    <a href={`http://127.0.0.1:8000/${selectedVehicle.policy_document}`}
+                                    <a href={`${API_BASE_URL}/${selectedVehicle.policy_document}`}
                                         target="_blank" rel="noreferrer"
                                         className="block bg-blue-50 text-blue-600 px-3 py-2 rounded-lg text-sm hover:bg-blue-100 transition-colors">
                                         📋 View Policy Document
