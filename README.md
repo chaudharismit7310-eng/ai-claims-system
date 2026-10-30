@@ -1,3 +1,16 @@
+---
+title: Ai Claims Backend
+emoji: 🚗
+colorFrom: red
+colorTo: yellow
+sdk: gradio
+sdk_version: 6.31.0
+python_version: '3.12'
+app_file: app.py
+pinned: false
+license: mit
+---
+
 #  AI-Powered Auto Insurance Claim Validation & Fraud Detection Platform
 
 An enterprise-grade, end-to-end InsurTech platform that automates vehicle damage assessment, cross-validates policy metadata, detects visual & text discrepancies, estimates repair costs, and identifies fraud using multimodal Computer Vision (YOLOv8 + Gemini VLM), Machine Learning (RandomForest + Gradient Boosting), NLP, and Image Forensics.
